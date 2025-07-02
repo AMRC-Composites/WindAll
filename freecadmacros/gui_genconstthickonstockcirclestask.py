@@ -18,11 +18,11 @@ print(sys.path[-1])
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along, lI1
 from barmesh.tribarmes.triangleboxing import TriangleBoxing
 
-import imp
+#import imp
 import utils.directedgeodesic
-imp.reload(utils.directedgeodesic)
+#imp.reload(utils.directedgeodesic)
 import utils.pathutils
-imp.reload(utils.pathutils)
+#imp.reload(utils.pathutils)
 
 from utils.pathutils import BallPathCloseRegions, MandrelPaths, MakeFEAcoloredmesh
 import utils.freecadutils as freecadutils
@@ -77,7 +77,7 @@ def setpropertyval(obj, atype, name, value):
 mandrelradius = 110  # fc6 file
 LRdirection = 1
 appaturepapproachpoint = P3(0,-150,0)
-maxlength = 2500
+maxlength = 5000
 
 Maxsideslipturningfactor = 0.26
 combofoldbackmode = 0

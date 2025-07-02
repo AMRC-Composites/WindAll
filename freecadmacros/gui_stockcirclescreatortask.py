@@ -22,9 +22,9 @@ import utils.freecadutils as freecadutils
 freecadutils.init(App)
 from utils.curvesutils import cumlengthlist, seglampos
 
-import imp
+#import imp
 import utils.directedgeodesic
-imp.reload(utils.directedgeodesic)
+#imp.reload(utils.directedgeodesic)
 from utils.directedgeodesic import directedgeodesic, makebicolouredwire, makedrivecurve, drivegeodesicRI, DriveCurve
 from utils.trianglemeshutils import UsefulBoxedTriangleMesh
 from utils.geodesicutils import drivegeodesic, InvAlong, GBarT, GBarC, drivecurveintersectionfinder, trilinecrossing, TOL_ZERO
