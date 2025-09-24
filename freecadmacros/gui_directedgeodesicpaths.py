@@ -34,10 +34,24 @@ def okaypressed():
 		alongwireI = None
 	#print(f'sketchplane is {sketchplane}')
 	gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(0, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, sideslipturningfactorZ, maxlength, outputfilament, showpaths = None)
-	makebicolouredwire(gbs, outputfilament, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
+	wire = makebicolouredwire(gbs, outputfilament, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
 		
 	if alongwirelanded:
-		qalongwireadvanceI.setText("%.4f" % ((alongwirelanded - alongwire + 1)%1))
+	    alongwireI = alongwirelanded - alongwire + 1
+	    qalongwireadvanceI.setText("%.4f" % ((alongwireI)%1))
+		
+	wire.addProperty("App::PropertyString", "filename", group="WindAll")
+	wire.filename = App.ActiveDocument.Name
+	wire.addProperty("App::PropertyFloat", "angle", group="WindAll")
+	wire.angle = float(qanglefilament.text())
+	wire.addProperty("App::PropertyFloat", "alongwire", group="WindAll")
+	wire.alongwire = alongwire
+	wire.addProperty("App::PropertyFloat", "alongwireAdv", group="WindAll")
+	wire.alongwireAdv = alongwireI
+	wire.addProperty("App::PropertyFloat", "maxlength", group="WindAll")
+	wire.maxlength = maxlength
+	wire.addProperty("App::PropertyBool", "mode", group="WindAll")
+	wire.mode = False
 
 Maxsideslipturningfactor = 0.26
 
@@ -52,19 +66,23 @@ qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 qw.setGeometry(700, 500, 570, 350)
 qw.setWindowTitle('Drive geodesic')
 qw.setStyleSheet("background-color: darkgray;")  # Set background colour to dark gray for better visibility
-qsketchplane = freecadutils.qrow(qw, "Sketchplane: ", 15+35*0)
+qsketchplane = freecadutils.qrow(qw, "Drivecurve: ", 15+35*0)
+qsketchplane.setToolTip("Enter the name of the sketch containing the drivecurve (autofilled if drivecurve is preselected)")
 qmeshobject = freecadutils.qrow(qw, "Meshobject: ", 15+35*1 )
+qmeshobject.setToolTip("Enter the name of the mesh to generate paths on (autofilled if mesh is preselected)")
 
 qalongwire = freecadutils.qrow(qw, "Along wire: ", 15+35*2, "0.51")
+qalongwire.setToolTip("Proportion of the way along the drive curve to start the filament path")
 qanglefilament = freecadutils.qrow(qw, "Angle filament: ", 15+35*3, "%.1f" % anglefilament)
+qanglefilament.setToolTip("Angle of the filament (relative to y axis)")
 
 qmaxlength = freecadutils.qrow(qw, "maxlength: ", 15+35*1, "%.2f" % maxlength, 260)
+qmaxlength.setToolTip("Maximum allowable length of path (path not generated if this is exceeded)")
 qalongwireadvanceI = freecadutils.qrow(qw, "AlngWrAdv(+) ", 15+35*2, "", 260)
-
-vlab = QtGui.QLabel("clear above to go one direction", qw)
-vlab.move(20+260, 15+35*3+5)
+qalongwireadvanceI.setToolTip("Proportion of way around drive curve to path next crossing it. If left blank then this is calculated, if a value is entered the path is forced to that")
 
 qsideslip = freecadutils.qrow(qw, "Side slip: ", 15+35*4, "0", 260)
+qsideslip.setToolTip("Maximum allowable sideslip (zero to ignore)")
 
 qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4, "w1")
 okButton = QtGui.QPushButton("Drive", qw)
