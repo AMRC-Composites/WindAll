@@ -50,9 +50,9 @@ nix build github:AMRC-Composites/nix-codeaster/9128e25bd7edeb6ab4b10927dd8939949
     
 # Here be dragons
 After this point, the user guide is just a work in progress to be updated later!
-<img src="/.github/images/dragon.png" width="200"/>
-##Generating paths
-###Axisymmetric case
+<img src="/.github/images/dragon.jpg" width="200"/>
+## Generating paths
+### Axisymmetric case
 * Draw geometry NOTE: must align y axis to machine
 * Draw drivecurve
 * Mesh NOTE must rename Mesh object to not include special characters in name such as ()
