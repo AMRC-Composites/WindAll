@@ -2,16 +2,16 @@
 WindAll: Optimised filament winding including for non-axisymmetric shapes.
 
 # User guide
-##Installation
+## Installation
 Full utilisation of WindAll requires the installation of 4 components; the core WindAll functions and scripts, FreeCAD to run these, Gmsh for meshing functions and Code Aster to perform the structural analysis. In order to use FreeCAD with Code Aster in order to use the structural analysis and optimisation functions of WindAll then a custom version of FreeCAD must be used. However the path generation and post-processor functions of WindAll can be used with a standard version of FreeCAD without Code Aster. Specific instructions for installation of the components is given below.
 
-###WindAll
+### WindAll
 The WindAll functions are a series of Python scripts which are intended to be run within FreeCAD. They do not require installation, they can simply be downloaded or cloned from:
 
 [WindAll repository](https://github.com/AMRC-Composites/WindAll)
 This contains the folder “freecadmacros” which contains the code and “freecadfiles” which contains some example files. Within FreeCAD, point the “User macros location” (found in Macro>Macros…  menu) to the location of the WindAll>freecadmacros folder.
 
-###FreeCAD
+### FreeCAD
 FreeCAD is a parametric 3D CAD modelling package. Standard, release versions of FreeCAD can be downloaded (for Windows, Mac or Linux) from:
 
 [FreeCAD official release](https://www.freecad.org/downloads.php)
@@ -22,7 +22,7 @@ As stated above, this allows the core functions of WindAll to be performed, but 
 HOWEVER, instead of cloning the official FreeCAD repository to build, you must instead clone this modified version of FreeCAD:
 [FreeCAD-CodeAster Integration fork](https://github.com/AMRC-Composites/FreeCAD-CodeAster.git)
 
-###Gmsh
+### Gmsh
 Gmsh is a meshing application and is easily installed (for Windows, Mac or Linux) after downloading from its official website:
 
 [Gmsh official website](https://gmsh.info/)
@@ -48,7 +48,7 @@ nix build github:AMRC-Composites/nix-codeaster/9128e25bd7edeb6ab4b10927dd8939949
 3. This will create a (link to the) result folder in the Home directory. You must now enter the location of the Code Aster executable in the Edit>Preferences>FEM>CodeAster menu as shown below. NOTE: in order to access the FEM options within Preferences you must first have opened the FEM workbench in that FreeCAD session.
     <img src="/.github/images/CApreferences.png" width="800"/>
     
-#Here be dragons
+# Here be dragons
 After this point, the user guide is just a work in progress to be updated later!
 <img src="/.github/images/dragon.png" width="200"/>
 ##Generating paths
@@ -74,5 +74,5 @@ Se a thinning tolerance of at least 1 to get sensible results.
 * Select outputwindings and run gui_postprocesswindings.
 * Toolpath output is in fillwind11.src
 
-###Non-axisymmetric case
+### Non-axisymmetric case
 * guidirectedgeodesicpaths with mesh and drive curve most basic function, other functions for iterating and multi drive curves built on this.
