@@ -67,7 +67,7 @@ def okaypressed():
     wire.addProperty("App::PropertyString", "filename", group="WindAll")
     wire.filename = App.ActiveDocument.Name
     wire.addProperty("App::PropertyFloatList", "angles", group="WindAll")
-    wire.angles = [x.angle for x in singlewindobjects]
+    wire.angles = [float(x.angle) for x in singlewindobjects]
     wire.addProperty("App::PropertyFloatList", "alongwires", group="WindAll")
     wire.alongwires = [x.alongwire for x in singlewindobjects]
     wire.addProperty("App::PropertyFloatList", "alongwireAdvs", group="WindAll")
@@ -75,14 +75,15 @@ def okaypressed():
     wire.addProperty("App::PropertyFloat", "maxlength", group="WindAll")
     maxlength = 0
     for x in singlewindobjects:
-        maxlength += x.maxlength
+        maxlength += float(x.maxlength)
     wire.maxlength = maxlength
     wire.addProperty("App::PropertyBool", "mode", group="WindAll")
     mode = singlewindobjects[0].mode
     for x in singlewindobjects:
         mode = mode and x.mode
     wire.mode = mode
-    
+    wire.addProperty("App::PropertyFloat", "repeatwindings", group="WindAll")
+    wire.repeatwindings = mandrelwindings
     qw.hide()
 
 qw = QtGui.QWidget()

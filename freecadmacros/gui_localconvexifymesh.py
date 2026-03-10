@@ -103,6 +103,7 @@ qw = QtGui.QWidget()
 qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 qw.setGeometry(700, 400, 300, 200)
 qw.setWindowTitle('Project path')
+qw.setStyleSheet("background-color: darkgray;")  # Set background colour to dark gray for better visibility
 qmeshobject = freecadutils.qrow(qw, "Meshobject: ", 50)
 qflatangletolerance = freecadutils.qrow(qw, "flat ang tol: ", 85, "1.0")
 okButton = QtGui.QPushButton("Convexify mesh", qw)
