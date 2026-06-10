@@ -94,12 +94,12 @@ class P3(namedtuple('P3', ['x', 'y', 'z'])):
         return math.sqrt(self.Lensq())
     def LenLZ(self):
         return math.sqrt(self.x*self.x + self.y*self.y)
-        
-        
+
+
     def assertlen1(self):
         assert abs(self.Len() - 1.0) < 0.0001
         return True
-        
+
     @staticmethod
     def Dot(a, b):
         return a.x*b.x + a.y*b.y + a.z*b.z
@@ -110,16 +110,17 @@ class P3(namedtuple('P3', ['x', 'y', 'z'])):
 
     @staticmethod
     def Diff(a, b, bfore):
-        if bfore:  return b - a
+        if bfore: return b - a
         return a - b
-        
+
     @staticmethod
     def ZNorm(v):
+        """Normalise vector length to a unit vector"""
         ln = v.Len()
-        if ln == 0.0:  
+        if ln == 0.0:
             ln = 1.0
         return P3(v.x/ln, v.y/ln, v.z/ln)
-            
+
     @staticmethod
     def ConvertGZ(p, z):  
         return P3(p.u, p.v, z)

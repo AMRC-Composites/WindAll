@@ -14,24 +14,27 @@ from utils.geodesicutils import TOL_ZERO
 
 SRCparameters = ["X", "Y", "Z", "A", "E1", "E3", "E4"]
 
+
 class TCPplusfibre:
+    """Creates an object to contain the Tool Centre point and associated winding angles"""
+
     def __init__(self, tcpR, ptR, tcpE3offset):
         vecR = ptR - tcpR
         self.freefibrelength = vecR.Len()
         self.DvecR = vecR
-        
+
         if tcpE3offset == 0:
             self.E3 = P2(-tcpR.x, -tcpR.z).Arg()
-            
+
             tcpRd = P2(tcpR.x, tcpR.z).Len()
             rvX = P3(-tcpR.x/tcpRd, 0, -tcpR.z/tcpRd)
             rvY = P3(0, 1, 0)
             rvZ = P3(-rvX.z, 0, rvX.x)
-            
+
             self.X = -tcpRd
             self.Y = tcpR.y
             self.Z = 0
-            
+
             DtcpR = rvX*self.X + rvY*self.Y + rvZ*self.Z
             TOL_ZERO((DtcpR - tcpR).Len())
             vec = P3(P3.Dot(rvX, vecR), P3.Dot(rvY, vecR), P3.Dot(rvZ, vecR))
@@ -42,7 +45,7 @@ class TCPplusfibre:
             self.X = tcp.x
             self.Y = tcp.y
             self.Z = tcp.z
-            
+
         TOL_ZERO(self.freefibrelength - vec.Len(), "freefibrewrong")
         TOL_ZERO((self.RotByE3(vec) - vecR).Len(), ("rotByE3vec failed"))
 
@@ -50,7 +53,7 @@ class TCPplusfibre:
         cE1a = vec.x/self.freefibrelength
         assert abs(cE1a) < 1.0001, cE1a
         self.E1a = math.degrees(math.acos(min(1.0, max(-1.0, cE1a))))
-        
+
         # Not sure what this was trying to achieve, but it screws things up if you try to wind over the end.
         #print("vec.z:",vec.z)
         #if vec.z < 0.0:
@@ -68,11 +71,11 @@ class TCPplusfibre:
         rvX = P3(math.cos(math.radians(E3)), 0, math.sin(math.radians(E3)))
         rvZ = P3(-rvX.z, 0, rvX.x)
         return rvX*pt.x + P3(0, pt.y, 0) + rvZ*pt.z
-    
+
     def GetTCP(self, bRotated):
         res = P3(self.X, self.Y, self.Z)
         return self.RotByE3(res) if bRotated else res
-        
+
     def GetVecR(self, bRotated):
         cosE1a = math.cos(math.radians(self.E1a))
         sinE1a = math.sin(math.radians(self.E1a))
@@ -88,7 +91,8 @@ class TCPplusfibre:
     def applyE1Winding(self, prevE1):
         lE1 = self.E1
         self.E1 = lE1 + 360*int((abs(prevE1 - lE1)+180)/360)*(1 if prevE1 > lE1 else -1)
-        
+
+
 def projectToRvalcylinderRoundEnds(pt, vec, cr, crylo, cryhi):
     qa = P2(vec.x, vec.z).Lensq()
     qb2 = pt.x*vec.x + pt.z*vec.z
@@ -154,3 +158,13 @@ def removebridges(pts):
         v2 = v3
     newpts += [pts[-2],pts[-1]]
     return newpts
+
+
+def writeParams(params, paramNames):
+    """Function to write a list of parameters with a corresponding list of names to the top of a src file"""
+    OPstr = "\n  ; *** WindAll Parameters *** \n"
+    assert len(params) == len(paramNames), "Must give equal number of parameters and parameter names"
+    for p, pn in zip(params, paramNames):
+        OPstr += "  ; " + pn + ": " + str(p) + "\n"
+    OPstr += "\n"
+    return OPstr
