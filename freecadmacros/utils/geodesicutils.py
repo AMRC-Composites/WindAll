@@ -1,4 +1,6 @@
 import math
+import Part
+from FreeCAD import Vector
 from barmesh.basicgeo import P3, P2, Along
 from utils.curvesutils import seglampos
 from utils.trianglemeshutils import facetbetweenbars
@@ -147,7 +149,7 @@ def TriangleExitCrossCutPlaneRight(tbar, perpvec, perpvecDot):
     assert tbar.nodeback.i < tbar.nodefore.i
 
     if dpvdnodefore <= perpvecDot <= dpvdnodeback:
-        tbarlam = InvAlong(perpvecDot,dpvdnodeback, dpvdnodefore)
+        tbarlam = InvAlong(perpvecDot, dpvdnodeback, dpvdnodefore)
         return tbar, tbarlam, False
 
     if dpvdnodeback <= perpvecDot <= dpvdnode2:
@@ -244,7 +246,108 @@ def drivecurveintersectionfinder(drivebars, tridrivebarsmap, gb0, gb1,
     return res
 
 
+def GBCrossBarRS(gb, ptpushfrom, sideslipturningfactor):
+    v = gb.bar.nodefore.p - gb.bar.nodeback.p
+    vn = P3.ZNorm(v)
+    pullforceFrom = P3.ZNorm(gb.pt - ptpushfrom)
+
+    sinalpha = P3.Dot(vn, pullforceFrom)
+    cosalpha = math.sqrt(max(0.0, 1.0 - sinalpha**2))
+
+    barforerightBL = gb.bar.GetForeRightBL(gb.bGoRight)
+    if barforerightBL is None:
+        return None
+    tnodeopposite = barforerightBL.GetNodeFore(barforerightBL.nodeback ==
+                                               gb.bar.GetNodeFore(gb.bGoRight))
+
+    trisidenorm = P3.ZNorm(P3.Cross(tnodeopposite.p - gb.bar.nodeback.p, v))
+    trisideperp = P3.Cross(vn, trisidenorm)
+    assert P3.Dot(trisideperp, tnodeopposite.p - gb.pt) >= 0.0
+
+    fromGoRight = gb.bGoRight
+
+    if sideslipturningfactor != 0.0:
+        barforerightBLBack = gb.bar.GetForeRightBL(not gb.bGoRight)
+        tnodeoppositeBack = barforerightBLBack.GetNodeFore(barforerightBLBack.nodeback ==
+                                                           gb.bar.GetNodeFore(not gb.bGoRight))
+        trisidenormBack = P3.ZNorm(P3.Cross(tnodeoppositeBack.p -
+                                            gb.bar.nodeback.p, v))
+        costheta = -P3.Dot(trisidenorm, trisidenormBack)
+        tfoldangle = math.acos(costheta)
+        siderotangle = sideslipturningfactor*tfoldangle*(-1 if gb.bGoRight
+                                                         else 1)
+        sinra = math.sin(siderotangle)
+        cosra = math.cos(siderotangle)
+        sinbeta = sinalpha*cosra + cosalpha*sinra
+        cosbeta = cosalpha*cosra - sinalpha*sinra
+        TOL_ZERO(math.hypot(sinbeta, cosbeta) - 1.0)
+        if cosbeta < 0.0:
+            print("bouncing back from glancing edge")
+            cosbeta = -cosbeta
+            fromGoRight = not gb.bGoRight
+            tnodeopposite = tnodeoppositeBack
+            trisidenorm = trisidenormBack
+            trisideperp = P3.Cross(vn, trisidenorm)
+            assert P3.Dot(trisideperp, tnodeopposite.p - gb.pt) >= 0.0
+
+    else:
+        sinbeta = sinalpha
+        cosbeta = cosalpha
+
+    vecoppouttoPerp = vn*cosbeta - trisideperp*sinbeta
+    vecoppouttoPerpD0 = P3.Dot(vecoppouttoPerp, gb.pt)
+    vecoppouttoPerpSide = P3.Dot(vecoppouttoPerp, tnodeopposite.p)
+
+    bForeTriSide = (vecoppouttoPerpSide <= vecoppouttoPerpD0)
+    barcrossing = (barforerightBL if fromGoRight == bForeTriSide
+                   else barforerightBL.GetForeRightBL(barforerightBL.nodefore
+                                                      == tnodeopposite))
+
+    if not (barcrossing.GetNodeFore(barcrossing.nodeback == tnodeopposite) ==
+            gb.bar.GetNodeFore(bForeTriSide)):
+        print("*** print debugs before assert, prob due to unhandled rebound")
+        print("sideslipturningfactor", sideslipturningfactor)
+        print("gb.bar", gb.bar, gb.bar.nodeback, gb.bar.nodefore, gb.bGoRight)
+        print("barforerightBL", barforerightBL)
+        print("barcrossing", barcrossing, barcrossing.nodeback,
+              barcrossing.nodefore)
+
+    assert barcrossing.GetNodeFore(barcrossing.nodeback ==
+                                   tnodeopposite) == gb.bar.GetNodeFore(bForeTriSide)
+
+    vecoppouttoPerpDI = P3.Dot(vecoppouttoPerp,
+                               gb.bar.GetNodeFore(bForeTriSide).p)
+    lamfromside = ((vecoppouttoPerpD0 - vecoppouttoPerpSide) /
+                   (vecoppouttoPerpDI - vecoppouttoPerpSide))
+    assert 0.0 <= lamfromside <= 1.0, lamfromside
+    lambarcrossing = (lamfromside if barcrossing.nodeback == tnodeopposite
+                      else 1.0 - lamfromside)
+
+    Dptbarcrossing = Along(lambarcrossing, barcrossing.nodeback.p,
+                           barcrossing.nodefore.p)
+    Dsinbeta = P3.Dot(P3.ZNorm(Dptbarcrossing - gb.pt), vn)
+    TOL_ZERO(Dsinbeta - sinbeta)
+    lambarcrossingGoRight = ((barcrossing.nodeback == tnodeopposite)
+                             == (bForeTriSide == fromGoRight))
+
+    return GBarC(barcrossing, lambarcrossing, lambarcrossingGoRight)
+
+
 class GBarC:
+    """
+    An object for a continuation of a geodesic crossing an edge containing:
+    bar: the edge in the trianglebarmesh being crossed
+    lam: the distance along the edge of the crossing point
+    bGoRight: a boolean describing the direction of crossing the bar
+    pt: the crossing point (as a P3 Vector)
+    tnorm_incoming: No idea
+
+    To initialise requires:
+    bar: the bar being crossed
+    lam: the distance along of the crossing point
+    bGoRight: the direction to cross
+    """
+
     def __init__(self, bar, lam, bGoRight):
         self.bar = bar
         self.lam = lam
@@ -253,7 +356,8 @@ class GBarC:
         self.tnorm_incoming = barfacetnormal(self.bar, not self.bGoRight)
 
     def GBCrossBar(self, ptpushfrom, flatbartangents):
-        c, bar, lam, bGoRight = GeoCrossBar(ptpushfrom, self.bar, self.lam, self.bGoRight, flatbartangents)
+        c, bar, lam, bGoRight = GeoCrossBar(ptpushfrom, self.bar, self.lam,
+                                            self.bGoRight, flatbartangents)
         if not bar:
             return None
         res = GBarC(bar, lam, bGoRight)
@@ -332,3 +436,77 @@ def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle, flatbar
     angcross = gbEnd.drivecurveanglefromvec(gbs[-1].pt - gbs[-2].pt)
     dcross = Along(gbEnd.dclam, dptcls[gbEnd.dcseg], dptcls[gbEnd.dcseg+1])
     return gbs, dcross, angcross
+
+
+def makebicolouredwire(gbs, name, colfront=(1.0, 0.0, 0.0),
+                       colback=(0.0, 0.3, 0.0), leadcolornodes=-1):
+    """
+    Creates a wire in two colours for a geodesic
+    Requires:
+    gbs: a list of geodesic bar type objects
+    name: Name to call the wire
+    colfront: Tuple of RGB values to set the colour of the first section
+    colback: Tuple of RGB values to set the colour of the second section
+    leadcolornodes: number of nodes to colour in front colour or
+    -1 to  set it to half of the total number of points (or a maximum of 40)
+    """
+
+    # Check if the last point in the list 'gbs' is None type and handle it
+    if gbs[-1]:
+        # If not None, create a polygon (wire) from the pts in 'gbs' and show
+        wire = Part.show(Part.makePolygon([Vector(*gb.pt)
+                                           for gb in gbs]), name)  # added[:-1]
+    else:
+        # If the last point is None, exclude it from the polygon creation
+        wire = Part.show(Part.makePolygon([Vector(*gb.pt)
+                                           for gb in gbs[:-1]]), name)
+
+    # If 'leadcolornodes' is not specified, set it to half of the total number of points (or a maximum of 40)
+    if leadcolornodes == -1:
+        leadcolornodes = min(len(gbs)//2, 40)
+
+    # Set the colours for the wire: first 'leadcolornodes' points will have 'colfront' colour,
+    # and the remaining points will have 'colback' colour
+    wire.ViewObject.LineColorArray = ([colfront]*leadcolornodes +
+                                      [colback]*(len(gbs) - leadcolornodes))
+    return wire
+
+
+def geodesic_from_pt(ubtm, startpt, startdirn, wname, sideslipturningfactor=0,
+                     maxlength=10000, MAX_SEGMENTS=1000):
+    """
+    Function to make a geodesic across a mesh from a starting point. Requires:
+    ubtm: A UsefulBoxedTriangleMesh object
+    startpt: The point to start the goedesic from, as P3 or FreeCAD.Vector
+    startdirn: The direction to run the geodesic in, as P3 or FreeCAD.Vector
+    wname: the name to give the wire as a string
+
+    returns:
+    gbs: A list of the bars crossed by the geodesic of GBarC type
+    wire: The wire object
+    """
+    startbar, startlam = ubtm.FindClosestEdge(startpt, 10)
+    gbstart = GBarC(startbar, startlam, False)
+    pushpt = gbstart.pt - startdirn  # Create a point before the first point
+    gbs = [gbstart]
+    gbFore = GBCrossBarRS(gbs[-1], pushpt, sideslipturningfactor)
+    gbs.append(gbFore)
+    dlength = (gbFore.pt - gbs[-1].pt).Len()
+
+    while True:
+        # finds next point along, 'extrapolating' from previous two points along mesh surface
+        gbFore = GBCrossBarRS(gbs[-1], gbs[-2].pt, sideslipturningfactor)
+        # stop path if gone off edge
+        if not gbFore:
+            gbs.append(None)
+            break
+        dlength += (gbFore.pt - gbs[-1].pt).Len()
+        # stop path if exceeded max length
+        if len(gbs) > MAX_SEGMENTS or (maxlength != -1 and dlength > maxlength):
+            gbs.append(None)
+            break
+        gbs.append(gbFore)
+
+    wire = makebicolouredwire(gbs, wname, colfront=(1.0, 0.0, 0.0),
+                              colback=(0.0, 0.3, 0.0), leadcolornodes=len(gbs))
+    return gbs, wire

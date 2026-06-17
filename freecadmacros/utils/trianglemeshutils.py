@@ -1,5 +1,6 @@
 from barmesh.tribarmes import TriangleBarMesh, MakeTriangleBoxing
 from barmesh.basicgeo import P3
+import FreeCAD as App
 import Mesh
 import Fem
 
@@ -9,13 +10,20 @@ def clamp(num, min_value, max_value):
 
 
 class UsefulBoxedTriangleMesh:
-    """Class to hold a triangle bar mesh object with boxing"""
+    """Class to hold a triangle bar mesh object with boxing
+        To initialise requires:
+        mesh: Either  FreeCAD Mesh or 1st order triangular FemMesh
+        btriangleboxing: boolean to determine whether or not to create boxing
+        Returns:
+        itself; a UBTM object"""
 
     def __init__(self, mesh, btriangleboxing=True):
         """
         Initialises a UBTM object, requires:
         mesh: Either  FreeCAD Mesh or 1st order triangular FemMesh
         btriangleboxing: boolean to determine whether or not to create boxing
+        Returns:
+        itself; a UBTM object
         """
         global tbarmesh, tboxing, hitreg, nhitreg
         if isinstance(mesh, Mesh.Mesh):
@@ -33,8 +41,9 @@ class UsefulBoxedTriangleMesh:
                     fapts.append(n.y)
                     fapts.append(n.z)
                 trpts.append(fapts)
-        print(trpts)
+
         # print("building tbarmesh ", len(trpts))
+        # print(trpts)
         self.tbarmesh = TriangleBarMesh()
         self.tbarmesh.BuildTriangleBarmesh(trpts)
         if isinstance(mesh, Mesh.Mesh):
@@ -48,6 +57,20 @@ class UsefulBoxedTriangleMesh:
             self.nhitreg = 0
 
     def FindClosestEdge(self, p, r=3):
+        """
+        Function to find the bar (edge) of the triaglebarmesh closest to a point.
+        Requires:
+        p: the point, in either P3 or FreeCAD.Vector form
+        r: the radius around which to search for a bar(must be > 1/2 mesh size
+        to guarantee finding a bar if the point is on the mesh surface)
+        Returns:
+        a bar object of the closest bar
+        lam: proportion of bar length along bar where closest to point
+        or:
+        None and 0.0 if no bar is present within the defined radius.
+        """
+        if isinstance(p, App.Vector):
+            p = P3(p.x, p.y, p.z)
         self.nhitreg += 1
         barclosest = None
         barclosestlam = 0.0

@@ -2,10 +2,11 @@ import math
 import Part
 from FreeCAD import Vector
 from barmesh.basicgeo import P3, P2, Along
-from utils.curvesutils import cumlengthlist, seglampos 
+from utils.curvesutils import cumlengthlist, seglampos
 from utils.trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
 from utils.wireembeddingutils import planecutembeddedcurve, planecutbars
-from utils.geodesicutils import InvAlong, GBarT, GBarC, drivecurveintersectionfinder, TOL_ZERO
+from utils.geodesicutils import InvAlong, GBarT, GBarC, TOL_ZERO
+from utils.geodesicutils import GBCrossBarRS, drivecurveintersectionfinder
 
 
 def calcfriction(gb, pt0, pt1):
@@ -28,79 +29,6 @@ def calcfriccoeffbarEnds(pullforceFrom, vn):
     assert sideforcesq >= -0.001
     sideforce = math.sqrt(max(0, sideforcesq))
     return (alongforce + 1.0)/sideforce, (alongforce - 1.0)/sideforce
-
-
-def GBCrossBarRS(gb, ptpushfrom, sideslipturningfactor):
-    v = gb.bar.nodefore.p - gb.bar.nodeback.p
-    vn = P3.ZNorm(v)
-    pullforceFrom = P3.ZNorm(gb.pt - ptpushfrom)
-
-    sinalpha = P3.Dot(vn, pullforceFrom)
-    cosalpha = math.sqrt(max(0.0, 1.0 - sinalpha**2))
-
-    barforerightBL = gb.bar.GetForeRightBL(gb.bGoRight)
-    if barforerightBL is None:
-        return None
-    tnodeopposite = barforerightBL.GetNodeFore(barforerightBL.nodeback == gb.bar.GetNodeFore(gb.bGoRight))
-
-    trisidenorm = P3.ZNorm(P3.Cross(tnodeopposite.p - gb.bar.nodeback.p, v))
-    trisideperp = P3.Cross(vn, trisidenorm)
-    assert P3.Dot(trisideperp, tnodeopposite.p - gb.pt) >= 0.0
-
-    fromGoRight = gb.bGoRight
-
-    if sideslipturningfactor != 0.0:
-        barforerightBLBack = gb.bar.GetForeRightBL(not gb.bGoRight)
-        tnodeoppositeBack = barforerightBLBack.GetNodeFore(barforerightBLBack.nodeback == gb.bar.GetNodeFore(not gb.bGoRight))
-        trisidenormBack = P3.ZNorm(P3.Cross(tnodeoppositeBack.p - gb.bar.nodeback.p, v))
-        costheta = -P3.Dot(trisidenorm, trisidenormBack)
-        tfoldangle = math.acos(costheta)
-        siderotangle = sideslipturningfactor*tfoldangle*(-1 if gb.bGoRight else 1)
-        sinra = math.sin(siderotangle)
-        cosra = math.cos(siderotangle)
-        sinbeta = sinalpha*cosra + cosalpha*sinra
-        cosbeta = cosalpha*cosra - sinalpha*sinra
-        TOL_ZERO(math.hypot(sinbeta, cosbeta) - 1.0)
-        if cosbeta < 0.0:
-            print("bouncing back from glancing edge")
-            cosbeta = -cosbeta
-            fromGoRight = not gb.bGoRight
-            tnodeopposite = tnodeoppositeBack
-            trisidenorm = trisidenormBack
-            trisideperp = P3.Cross(vn, trisidenorm)
-            assert P3.Dot(trisideperp, tnodeopposite.p - gb.pt) >= 0.0
-
-    else:
-        sinbeta = sinalpha
-        cosbeta = cosalpha
-
-    vecoppouttoPerp = vn*cosbeta - trisideperp*sinbeta
-    vecoppouttoPerpD0 = P3.Dot(vecoppouttoPerp, gb.pt)
-    vecoppouttoPerpSide = P3.Dot(vecoppouttoPerp, tnodeopposite.p)
-
-    bForeTriSide = (vecoppouttoPerpSide <= vecoppouttoPerpD0)
-    barcrossing = barforerightBL if fromGoRight == bForeTriSide else barforerightBL.GetForeRightBL(barforerightBL.nodefore == tnodeopposite)
-
-    if not (barcrossing.GetNodeFore(barcrossing.nodeback == tnodeopposite) == gb.bar.GetNodeFore(bForeTriSide)):
-        print("*** print debugs before assert, prob due to unhandled bounce back")
-        print("sideslipturningfactor", sideslipturningfactor)
-        print("gb.bar", gb.bar, gb.bar.nodeback, gb.bar.nodefore, gb.bGoRight)
-        print("barforerightBL", barforerightBL)
-        print("barcrossing", barcrossing, barcrossing.nodeback, barcrossing.nodefore)
-
-    assert barcrossing.GetNodeFore(barcrossing.nodeback == tnodeopposite) == gb.bar.GetNodeFore(bForeTriSide)
-
-    vecoppouttoPerpDI = P3.Dot(vecoppouttoPerp, gb.bar.GetNodeFore(bForeTriSide).p)
-    lamfromside = (vecoppouttoPerpD0 - vecoppouttoPerpSide) / (vecoppouttoPerpDI - vecoppouttoPerpSide)
-    assert 0.0 <= lamfromside <= 1.0, lamfromside
-    lambarcrossing = lamfromside if barcrossing.nodeback == tnodeopposite else 1.0 - lamfromside
-
-    Dptbarcrossing = Along(lambarcrossing, barcrossing.nodeback.p, barcrossing.nodefore.p)
-    Dsinbeta = P3.Dot(P3.ZNorm(Dptbarcrossing - gb.pt), vn)
-    TOL_ZERO(Dsinbeta - sinbeta)
-    lambarcrossingGoRight = (barcrossing.nodeback == tnodeopposite) == (bForeTriSide == fromGoRight)
-
-    return GBarC(barcrossing, lambarcrossing, lambarcrossingGoRight)
 
 
 def drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle):
@@ -146,34 +74,13 @@ def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1,
     return gbs
 
 
-def makebicolouredwire(gbs, name, colfront=(1.0, 0.0, 0.0),
-                       colback=(0.0, 0.3, 0.0), leadcolornodes=-1):
-
-    # Check if the last point in the list 'gbs' is None type and handle it
-    if gbs[-1]:
-        # If not None, create a polygon (wire) from the pts in 'gbs' and show
-        wire = Part.show(Part.makePolygon([Vector(*gb.pt)
-                                           for gb in gbs]), name)  # added[:-1]
-    else:
-        # If the last point is None, exclude it from the polygon creation
-        wire = Part.show(Part.makePolygon([Vector(*gb.pt)
-                                           for gb in gbs[:-1]]), name)
-
-    # If 'leadcolornodes' is not specified, set it to half of the total number of points (or a maximum of 40)
-    if leadcolornodes == -1:
-        leadcolornodes = min(len(gbs)//2, 40)
-
-    # Set the colours for the wire: first 'leadcolornodes' points will have 'colfront' colour,
-    # and the remaining points will have 'colback' colour
-    wire.ViewObject.LineColorArray = ([colfront]*leadcolornodes +
-                                      [colback]*(len(gbs) - leadcolornodes))
-    return wire
-
-
 class DriveCurve:
     def __init__(self, drivebars):
         self.drivebars = drivebars
-        self.tridrivebarsmap = dict((facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0]).i, dseg)  for dseg in range(len(drivebars)-1))
+        self.tridrivebarsmap = dict((facetbetweenbars(drivebars[dseg][0], 
+                                                      drivebars[dseg+1][0]).i,
+                                     dseg)
+                                    for dseg in range(len(drivebars)-1))
         self.dpts = [Along(lam, bar.nodeback.p, bar.nodefore.p)
                      for bar, lam in drivebars]
         self.dptcls = cumlengthlist(self.dpts)
