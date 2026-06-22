@@ -129,12 +129,15 @@ def barfacetnormal(bar, bGoRight, ptcommon=None):
     nodeAhead = bar.GetNodeFore(bGoRight)
     nodeBehind = bar.GetNodeFore(not bGoRight)
     barAhead = bar.GetForeRightBL(bGoRight)
-    barAheadGoRight = barAhead.nodeback == nodeAhead
-    nodeOpposite = barAhead.GetNodeFore(barAheadGoRight)
-    ptc = nodeOpposite.p if ptcommon is None else ptcommon
-    v2ahead = nodeAhead.p - ptc
-    v2behind = nodeBehind.p - ptc
-    return P3.ZNorm(P3.Cross(v2ahead, v2behind))
+    if barAhead:
+        barAheadGoRight = barAhead.nodeback == nodeAhead
+        nodeOpposite = barAhead.GetNodeFore(barAheadGoRight)
+        ptc = nodeOpposite.p if ptcommon is None else ptcommon
+        v2ahead = nodeAhead.p - ptc
+        v2behind = nodeBehind.p - ptc
+        return P3.ZNorm(P3.Cross(v2ahead, v2behind))
+    else:
+        return None
 
 
 def InvAlong(v, a, b):
@@ -340,7 +343,7 @@ class GBarC:
     lam: the distance along the edge of the crossing point
     bGoRight: a boolean describing the direction of crossing the bar
     pt: the crossing point (as a P3 Vector)
-    tnorm_incoming: No idea
+    tnorm_incoming: the normal vector of the face 'before' this bar
 
     To initialise requires:
     bar: the bar being crossed
@@ -352,8 +355,15 @@ class GBarC:
         self.bar = bar
         self.lam = lam
         self.bGoRight = bGoRight
-        self.pt = Along(self.lam, self.bar.nodeback.p, self.bar.nodefore.p)  # Cauing attribute errors
-        self.tnorm_incoming = barfacetnormal(self.bar, not self.bGoRight)
+        self.pt = Along(self.lam, self.bar.nodeback.p, self.bar.nodefore.p)
+
+        # Tries to use 'previous' facet of mesh, but in situations this doesn't
+        # work (i.e. edge of part, literal edge case!) then uses 'next' facet
+        bfn = barfacetnormal(self.bar, not self.bGoRight)
+        if bfn:
+            self.tnorm_incoming = bfn
+        else:
+            self.tnorm_incoming = barfacetnormal(self.bar, self.bGoRight)
 
     def GBCrossBar(self, ptpushfrom, flatbartangents):
         c, bar, lam, bGoRight = GeoCrossBar(ptpushfrom, self.bar, self.lam,
@@ -486,26 +496,37 @@ def geodesic_from_pt(ubtm, startpt, startdirn, wname, sideslipturningfactor=0,
     wire: The wire object
     """
     startbar, startlam = ubtm.FindClosestEdge(startpt, 10)
-    gbstart = GBarC(startbar, startlam, False)
+    gbstart = GBarC(startbar, startlam, True)
     pushpt = gbstart.pt - startdirn  # Create a point before the first point
+
+    # Now need to check which side of the bar the push pt is on to set bGoRight
+    vbar = startbar.nodefore.p - startbar.nodeback.p
+    vpushpt = pushpt-startbar.nodeback.p
+    startnorm = P3.Cross(vbar, vpushpt)
+    if P3.Dot(gbstart.tnorm_incoming, startnorm) < 0:
+        gbstart.bGoRight = False
+
     gbs = [gbstart]
     gbFore = GBCrossBarRS(gbs[-1], pushpt, sideslipturningfactor)
     gbs.append(gbFore)
-    dlength = (gbFore.pt - gbs[-1].pt).Len()
-
-    while True:
-        # finds next point along, 'extrapolating' from previous two points along mesh surface
-        gbFore = GBCrossBarRS(gbs[-1], gbs[-2].pt, sideslipturningfactor)
-        # stop path if gone off edge
-        if not gbFore:
-            gbs.append(None)
-            break
-        dlength += (gbFore.pt - gbs[-1].pt).Len()
-        # stop path if exceeded max length
-        if len(gbs) > MAX_SEGMENTS or (maxlength != -1 and dlength > maxlength):
-            gbs.append(None)
-            break
-        gbs.append(gbFore)
+    if gbFore:
+        dlength = (gbFore.pt - gbs[-1].pt).Len()
+        while True:
+            # finds next point along, 'extrapolating' from previous two points along mesh surface
+            gbFore = GBCrossBarRS(gbs[-1], gbs[-2].pt, sideslipturningfactor)
+            # stop path if gone off edge
+            if not gbFore:
+                gbs.append(None)
+                break
+            dlength += (gbFore.pt - gbs[-1].pt).Len()
+            # stop path if exceeded max length
+            if len(gbs) > MAX_SEGMENTS or (maxlength != -1 and dlength > maxlength):
+                gbs.append(None)
+                break
+            gbs.append(gbFore)
+    else:
+        # This is the case for starting on an edge and heading straight off it
+        return None, None
 
     wire = makebicolouredwire(gbs, wname, colfront=(1.0, 0.0, 0.0),
                               colback=(0.0, 0.3, 0.0), leadcolornodes=len(gbs))
