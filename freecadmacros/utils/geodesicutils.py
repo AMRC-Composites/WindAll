@@ -483,13 +483,18 @@ def makebicolouredwire(gbs, name, colfront=(1.0, 0.0, 0.0),
 
 
 def geodesic_from_pt(ubtm, startpt, startdirn, wname, sideslipturningfactor=0,
-                     maxlength=10000, MAX_SEGMENTS=1000):
+                     maxlength=10000, MAX_SEGMENTS=1000, bothways=False):
     """
     Function to make a geodesic across a mesh from a starting point. Requires:
     ubtm: A UsefulBoxedTriangleMesh object
     startpt: The point to start the goedesic from, as P3 or FreeCAD.Vector
     startdirn: The direction to run the geodesic in, as P3 or FreeCAD.Vector
     wname: the name to give the wire as a string
+    sideslipturningfactor: Allowable amount of sideslip
+    maxlength: Maximum length for path in drawing units (e.g. mm)
+    MAX_SEGMENTS: Maximum length for path in segments
+    bothways: If False line only goes in startdirn,
+    if True also extends in negative dirn
 
     returns:
     gbs: A list of the bars crossed by the geodesic of GBarC type
@@ -520,10 +525,24 @@ def geodesic_from_pt(ubtm, startpt, startdirn, wname, sideslipturningfactor=0,
                 break
             dlength += (gbFore.pt - gbs[-1].pt).Len()
             # stop path if exceeded max length
-            if len(gbs) > MAX_SEGMENTS or (maxlength != -1 and dlength > maxlength):
+            if len(gbs) > MAX_SEGMENTS or (maxlength != -1 and
+                                           dlength > maxlength):
                 gbs.append(None)
                 break
             gbs.append(gbFore)
+        if bothways:
+            gbs[0].bGoRight = not gbs[0].bGoRight
+            while True:
+                gbFore = GBCrossBarRS(gbs[0], gbs[1].pt, sideslipturningfactor)
+                # stop path if gone off edge
+                if not gbFore:
+                    break
+                dlength += (gbFore.pt - gbs[0].pt).Len()
+                # stop path if exceeded max length
+                if len(gbs) > MAX_SEGMENTS or (maxlength != -1 and
+                                               dlength > maxlength):
+                    break
+                gbs.insert(0, gbFore)
     else:
         # This is the case for starting on an edge and heading straight off it
         return None, None
