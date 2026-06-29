@@ -1,6 +1,6 @@
 import math
 import Part
-from FreeCAD import Vector
+from FreeCAD import Vector, Console
 from barmesh.basicgeo import P3, P2, Along
 from utils.curvesutils import seglampos
 from utils.trianglemeshutils import facetbetweenbars
@@ -483,7 +483,8 @@ def makebicolouredwire(gbs, name, colfront=(1.0, 0.0, 0.0),
 
 
 def geodesic_from_pt(ubtm, startpt, startdirn, wname, sideslipturningfactor=0,
-                     maxlength=10000, MAX_SEGMENTS=1000, bothways=False):
+                     maxlength=10000, MAX_SEGMENTS=1000, 
+                     bothways=False, fudge = None):
     """
     Function to make a geodesic across a mesh from a starting point. Requires:
     ubtm: A UsefulBoxedTriangleMesh object
@@ -495,12 +496,30 @@ def geodesic_from_pt(ubtm, startpt, startdirn, wname, sideslipturningfactor=0,
     MAX_SEGMENTS: Maximum length for path in segments
     bothways: If False line only goes in startdirn,
     if True also extends in negative dirn
+    fudge: if a number is entered then if the startpt is precisely on a node
+    new startpt is chosen, nudged towards the centre of the mesh by this
+    fudge factor.
 
     returns:
     gbs: A list of the bars crossed by the geodesic of GBarC type
     wire: The wire object
     """
     startbar, startlam = ubtm.FindClosestEdge(startpt, 10)
+
+    # Check if this is on a node, and if so move it if fudge is set
+    if startlam == 0.0 or startlam == 1.0:
+        if fudge:
+            tbarmesh = ubtm.tbarmesh
+            cornerlo = Vector(tbarmesh.xlo, tbarmesh.ylo, tbarmesh.zlo)
+            cornerhi = Vector(tbarmesh.xhi, tbarmesh.yhi, tbarmesh.zhi)
+            centre = (cornerlo + cornerhi)/2
+            vcent = centre - startpt
+            mag = fudge / vcent.Length
+            startpt += mag * vcent
+            startbar, startlam = ubtm.FindClosestEdge(startpt, 10)
+        else:
+            Console.PrintWarning("POINT IS ON A NODE")
+            return None, None
     gbstart = GBarC(startbar, startlam, True)
     pushpt = gbstart.pt - startdirn  # Create a point before the first point
 
@@ -544,7 +563,7 @@ def geodesic_from_pt(ubtm, startpt, startdirn, wname, sideslipturningfactor=0,
                     break
                 gbs.insert(0, gbFore)
     else:
-        # This is the case for starting on an edge and heading straight off it
+        Console.PrintWarning("LINE GOES STRAIGHT OFF EDGE")
         return None, None
 
     wire = makebicolouredwire(gbs, wname, colfront=(1.0, 0.0, 0.0),

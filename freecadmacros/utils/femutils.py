@@ -33,15 +33,26 @@ def find_max_stress(stress_name, vtk_obj, print_res=False):
         if abs(stress) > abs(max_stress):
             max_stress = stress
             max_stress_pid = i
-            max_stress_loc = data.GetPoint(i)
+            max_stress_loc = FreeCAD.Vector(data.GetPoint(i)[0],
+                                            data.GetPoint(i)[1],
+                                            data.GetPoint(i)[2])
 
     if max_stress:
         if print_res:
-            FreeCAD.Console.PrintMessage(stress_name)
+            FreeCAD.Console.PrintMessage(stress_name + "\n")
             FreeCAD.Console.PrintMessage(f"Maximum of: {max_stress}\n")
             FreeCAD.Console.PrintMessage(f"On point id: {max_stress_pid}\n")
             FreeCAD.Console.PrintMessage(f"At location: {max_stress_loc}\n")
     else:
         FreeCAD.Console.PrintWarning(f"Maximum of {stress_name} NOT FOUND")
 
-    return max_stress, max_stress_pid, max_stress_loc
+    stress_name_axis = stress_name + "_axis"
+    axisdata = pdata.GetArray(stress_name_axis)
+    if axisdata:
+        xval = axisdata.GetComponent(0, 0)
+        yval = axisdata.GetComponent(0, 1)
+        axis = FreeCAD.Vector(xval, yval, 0)
+    else:
+        axis = None
+
+    return max_stress, max_stress_pid, max_stress_loc, axis
