@@ -4,6 +4,7 @@ intended to be run from within FreeCAD
 """
 
 import FreeCAD
+import numpy as np
 
 
 def find_max_stress(stress_name, vtk_obj, print_res=False):
@@ -19,23 +20,37 @@ def find_max_stress(stress_name, vtk_obj, print_res=False):
     max_stress_loc: FreeCAD Vector for the location of the maximum
     """
 
-    data = vtk_obj.Data
+    data = vtk_obj.getDataSet()
     pdata = data.GetPointData()
     if not pdata.GetArray(stress_name):
         FreeCAD.Console.PrintWarning(stress_name, "NOT FOUND IN DATA SET")
         return None, None, None
+    arr = pdata.GetArray(stress_name)
     max_stress = 0  # Maximum value of stress component
     max_stress_pid = None  # id of point of maximum stress
     max_stress_loc = None  # location of maximum stress
 
-    for i in range(data.GetNumberOfPoints()):
-        stress = pdata.GetArray(stress_name).GetValue(i)
-        if abs(stress) > abs(max_stress):
-            max_stress = stress
-            max_stress_pid = i
-            max_stress_loc = FreeCAD.Vector(data.GetPoint(i)[0],
-                                            data.GetPoint(i)[1],
-                                            data.GetPoint(i)[2])
+    if arr.GetNumberOfComponents() == 1:
+        for i in range(data.GetNumberOfPoints()):
+            stress = arr.GetValue(i)
+            if abs(stress) > abs(max_stress):
+                max_stress = stress
+                max_stress_pid = i
+                max_stress_loc = FreeCAD.Vector(data.GetPoint(i)[0],
+                                                data.GetPoint(i)[1],
+                                                data.GetPoint(i)[2])
+    else:
+        for i in range(data.GetNumberOfPoints()):
+            magsqrd = 0
+            for j in range(arr.GetNumberOfComponents()):
+                magsqrd += arr.GetComponent(i, j) ** 2
+            stress = np.sqrt(magsqrd)
+            if abs(stress) > abs(max_stress):
+                max_stress = stress
+                max_stress_pid = i
+                max_stress_loc = FreeCAD.Vector(data.GetPoint(i)[0],
+                                                data.GetPoint(i)[1],
+                                                data.GetPoint(i)[2])
 
     if max_stress:
         if print_res:

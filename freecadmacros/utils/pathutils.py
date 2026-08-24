@@ -1,6 +1,6 @@
 import numpy as np
 import Fem
-import utils.freecadutils as freecadutils
+import windallutils.freecadutils as freecadutils
 from barmesh.basicgeo import I1, P3
 from barmesh.tribarmes.triangleboxing import TriangleBoxing
 

@@ -2,8 +2,8 @@ import math
 import Part
 from FreeCAD import Vector, Console
 from barmesh.basicgeo import P3, P2, Along
-from utils.curvesutils import seglampos
-from utils.trianglemeshutils import facetbetweenbars
+from windallutils.curvesutils import seglampos
+from windallutils.trianglemeshutils import facetbetweenbars
 
 
 def Square(X):
@@ -507,7 +507,7 @@ def geodesic_from_pt(ubtm, startpt, startdirn, wname, sideslipturningfactor=0,
     startbar, startlam = ubtm.FindClosestEdge(startpt, 10)
 
     # Check if this is on a node, and if so move it if fudge is set
-    if startlam == 0.0 or startlam == 1.0:
+    if startlam < 1e-3 or (1-startlam) < 1e-3:
         if fudge:
             tbarmesh = ubtm.tbarmesh
             cornerlo = Vector(tbarmesh.xlo, tbarmesh.ylo, tbarmesh.zlo)
@@ -568,4 +568,7 @@ def geodesic_from_pt(ubtm, startpt, startdirn, wname, sideslipturningfactor=0,
 
     wire = makebicolouredwire(gbs, wname, colfront=(1.0, 0.0, 0.0),
                               colback=(0.0, 0.3, 0.0), leadcolornodes=len(gbs))
+    wire.addProperty("App::PropertyFloat", "Length")
+    wire.Length = dlength
+
     return gbs, wire

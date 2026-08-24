@@ -1,7 +1,7 @@
 import math
 import FreeCAD
 from barmesh.basicgeo import P3, P2, Along
-from utils.geodesicutils import TOL_ZERO
+from windallutils.geodesicutils import TOL_ZERO
 
 # X - moves towards/away from the tool (perpendicular to the carriage).
 # Y - moves along the carriage axis

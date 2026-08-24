@@ -3,9 +3,9 @@ import math
 import Part
 from FreeCAD import Vector, Rotation
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along
-from utils.curvesutils import isdiscretizableobject, discretizeobject, cumlengthlist, seglampos 
-from utils.trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
-from utils.wireembeddingutils import planecutembeddedcurve, planecutbars
+from windallutils.curvesutils import isdiscretizableobject, discretizeobject, cumlengthlist, seglampos 
+from windallutils.trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
+from windallutils.wireembeddingutils import planecutembeddedcurve, planecutbars
 
 from utils.geodesicutils import drivegeodesic, InvAlong, GBarT, GBarC, drivecurveintersectionfinder, trilinecrossing, TOL_ZERO
 

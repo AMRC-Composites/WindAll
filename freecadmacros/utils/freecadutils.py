@@ -3,7 +3,7 @@ import Part
 import Mesh
 from PySide import QtGui
 from barmesh.basicgeo import Along
-from utils.trianglemeshutils import facetbetweenbars
+from windallutils.trianglemeshutils import facetbetweenbars
 
 doc = None
 sel = []
@@ -45,6 +45,8 @@ def getlabelofselectedmesh():
             else:
                 print("***  Wrong version of FreeCAD, \n\nMeshCurvature object missing ValueAtIndex hack.")
                 return "**WrongFCversion"
+        if hasattr(s, "FemMesh"):
+            return s.Label
     return ""
 
 

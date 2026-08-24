@@ -2,11 +2,11 @@ import math
 import Part
 from FreeCAD import Vector
 from barmesh.basicgeo import P3, P2, Along
-from utils.curvesutils import cumlengthlist, seglampos
-from utils.trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
-from utils.wireembeddingutils import planecutembeddedcurve, planecutbars
-from utils.geodesicutils import InvAlong, GBarT, GBarC, TOL_ZERO
-from utils.geodesicutils import GBCrossBarRS, drivecurveintersectionfinder
+from windallutils.curvesutils import cumlengthlist, seglampos
+from windallutils.trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
+from windallutils.wireembeddingutils import planecutembeddedcurve, planecutbars
+from windallutils.geodesicutils import InvAlong, GBarT, GBarC, TOL_ZERO
+from windallutils.geodesicutils import GBCrossBarRS, drivecurveintersectionfinder
 
 
 def calcfriction(gb, pt0, pt1):
